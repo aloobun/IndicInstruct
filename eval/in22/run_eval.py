@@ -83,10 +83,10 @@ def gen_prompt(dev_data, src_lang, tgt_lang, k=-1):
         exemplars = dev_data.select(range(k))
         for example in exemplars:
             prompt += format_example(
-                src_text=example[f"sentence_{src_lang}"],
+                src_text=example[f"{src_lang}"],
                 src_lang=src_lang,
                 tgt_lang=tgt_lang,
-                tgt_text=example[f"sentence_{tgt_lang}"],
+                tgt_text=example[f"{tgt_lang}"],
             )
     return prompt
 
@@ -114,24 +114,24 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    dataset = load_dataset(args.dataset, f"{args.src_lang}-{args.tgt_lang}")
+    dataset = load_dataset(args.dataset)
     dataset = dataset.map(
         lambda x: {
-            f"sentence_{args.src_lang}": x[f"sentence_{args.src_lang}"].strip(),
-            f"sentence_{args.tgt_lang}": x[f"sentence_{args.tgt_lang}"].strip(),
+            f"{args.src_lang}": x[f"{args.src_lang}"].strip(),
+            f"{args.tgt_lang}": x[f"{args.tgt_lang}"].strip(),
         }
     )
-    test_data = dataset["gen"] if args.dataset == "ai4bharat/IN22-Gen" else dataset["conv"]
+    test_data = dataset["test"] if args.dataset == "mteb/IN22-Gen" else dataset["conv"]
     # test_data = test_data.select(range(50))
 
     prompts = []
     for i, example in enumerate(test_data):
         dev_data = test_data.filter(
-            lambda x: x[f"sentence_{args.src_lang}"] != example[f"sentence_{args.src_lang}"]
+            lambda x: x[f"{args.src_lang}"] != example[f"{args.src_lang}"]
         ).shuffle(args.seed)
         k = args.ntrain
         prompt_end = format_example(
-            src_text=example[f"sentence_{args.src_lang}"], src_lang=args.src_lang, tgt_lang=args.tgt_lang
+            src_text=example[f"{args.src_lang}"], src_lang=args.src_lang, tgt_lang=args.tgt_lang
         )
         train_prompt = gen_prompt(dev_data, args.src_lang, args.tgt_lang, k)
         prompt = train_prompt + prompt_end
@@ -193,7 +193,7 @@ def main(args):
     bleurt = score.BleurtScorer(args.bleurt_model_name_or_path)
 
     predictions = [output for output in outputs]
-    references = [[example[f"sentence_{args.tgt_lang}"]] for example in test_data]
+    references = [[example[f"{args.tgt_lang}"]] for example in test_data]
 
     metrics = {
         "bleu": sacrebleu.compute(predictions=predictions, references=references)["score"],
@@ -216,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument("--ntrain", type=int, default=5, help="number of examples to use for few-shot evaluation.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--dataset", type=str, default="ai4bharat/IN22-Gen", choices=["ai4bharat/IN22-Gen", "ai4bharat/IN22-Conv"]
+        "--dataset", type=str, default="mteb/IN22-Gen", choices=["mteb/IN22-Gen", "mteb/IN22-Conv"]
     )
     parser.add_argument(
         "--src_lang",
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bleurt_model_name_or_path",
         type=str,
-        default="/data/jaygala/bleurt/BLEURT-20",
+        default="./BLEURT-20/BLEURT-20",
         help="bleurt model to load for evaluation.",
     )
     parser.add_argument(
